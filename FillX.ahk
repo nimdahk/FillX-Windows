@@ -1,11 +1,23 @@
-﻿#NoEnv
+﻿ignoreClasses = Progman,DV2ControlHost,Button
+ignoreTitles  = 
+hotkey = #MButton ; Place the shape-switching symbol in front if using multiple modifiers.
+toggle := False ; Use False for move-while-holding and True for one click to start, one to finish
+; End Config
+
+
+#NoEnv
 #Warn
+#SingleInstance Force
 CoordMode Mouse
 
-ignoreClasses = Progman,DV2ControlHost,Button
-ignoreTitles  = 
 
-#MButton::
+modifier := SubStr(Hotkey, 1, 1)
+modifierName := {"!": "Alt", "+": "Shift", "#": "Win", "^": "Ctrl"}[modifier]
+buttonName := RegExReplace(Hotkey, "[!+*#<>]", "")
+Hotkey, %Hotkey%, Start
+return
+
+Start:
 	MouseGetPos,,, targetID
 	targetID := "ahk_id " . targetID
 	WinGet, list, List
@@ -31,8 +43,14 @@ ignoreTitles  =
 						,"right": x + width, "bottom": y + height, "title": title})
 	}
 	WinRestore, % targetID ; Resizing maximized windows causes size issues with manual restoring
-	Hotkey, LWin Up, BreakStartMenu, On
-	While GetKeyState("MButton", "P")
+        If InStr(Hotkey, "#")
+	{
+		Hotkey, LWin Up, BreakStartMenu, On
+		Hotkey, RWin Up, BreakStartMenu, On
+	}
+	If toggle
+		KeyWait, %buttonName%
+	While GetKeyState(buttonName, "P") ^ toggle
 	{
 		MouseGetPos, mouseX, mouseY
 		For each, window in winList ; wait until the mouse isn't over another window
@@ -43,7 +61,9 @@ ignoreTitles  =
 		
 		rect := monitorDimensionsAtMouse()
 		mouse := {x: mouseX, y: mouseY}
-		If GetKeyState("LWin", "P")
+		; Hack around 'Win' not being valid, though 'Ctrl' is,
+		; by using explicit keyboard sides ('LWin', 'RCtrl') for everything
+		If GetKeyState("L" . modifierName, "P") || GetKeyState("R" . modifierName, "P")
 			xy1 := "Y", xy2 := "X", s1 := "top", s2 := "left", s3 := "bottom", s4 := "right"
 		Else
 			xy1 := "X", xy2 := "Y", s1 := "left", s2 := "top", s3 := "right", s4 := "bottom"
@@ -73,6 +93,7 @@ ignoreTitles  =
 				, % rect.right - rect.left, % rect.bottom - rect.top
 	}
 	Hotkey, LWin Up, Off
+	Hotkey, RWin Up, Off
 return
 
 BreakStartMenu:
